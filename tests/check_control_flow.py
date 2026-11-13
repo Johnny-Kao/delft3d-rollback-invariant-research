@@ -15,6 +15,9 @@ limit_section = code.split("if (nums1it > maxNonlinearIterations) then", 1)[1].s
 for symbol in ("source_sinks%cumulative_discharge_waq = source_sinks%cumulative_discharge_waq_previous", "qlatwaq = qlatwaq0"):
     assert symbol in key_section, f"missing expected key=2 restore: {symbol}"
     assert symbol not in limit_section, f"nonlinear branch already restores: {symbol}"
+nested_retry = code.split("if (nonlin1D >= 3 .and. firstnniteration) then ! jposhcheck==-1", 1)[1].split("cycle wetdry", 1)[0]
+for symbol in ("source_sinks%cumulative_discharge_waq =", "qlatwaq = qlatwaq0"):
+    assert symbol not in nested_retry, f"unexpected nested-Newton restore: {symbol}"
 assert "call update_waq_lateral_fluxes()" in s1
 assert "call update_waq_sink_source_fluxes()" in s1
 assert s1.index("call source_sinks%update_discharges()") < s1.index("call update_waq_sink_source_fluxes()")

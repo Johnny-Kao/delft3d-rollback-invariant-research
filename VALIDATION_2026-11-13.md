@@ -3,7 +3,7 @@
 Date: 2026-11-13 (Asia/Tokyo)  
 Upstream: Deltares/Delft3D (read-only copy, **not a GitHub fork**)  
 Pinned SHA: `fc48ceb1692afd87699f4cda081884c4bf4d2a91`  
-Research repository: Johnny-Kao/delft3d-rollback-invariant-research (private)
+Research repository: https://github.com/Johnny-Kao/delft3d-rollback-invariant-research (PUBLIC, independent, isFork=false)
 
 ## Verified results
 
@@ -29,6 +29,8 @@ Two hidden-contract hypotheses are weakened: the individual WAQ accumulation rou
 
 The `s1ini` routine calls the source/sink updater on each applicable setup before the nonlinear solve. The iteration-limit path halves `dts` and re-enters `setback` without the explicit restore present in the `key==2` path.
 
+**Additional sibling path:** inside the `key == 2` branch, the first Nested Newton attempt with `nonlin1D >= 3` calls `cycle wetdry` *before* reaching the explicit WAQ restore block. The source-only test now checks this as another un-restored retry control-flow edge. Whether the physical output can be affected remains unproven without actual Solver execution. This means the candidate may not be limited to iteration-limit failures.
+
 A targeted native acceptance test must explicitly log:
 1. `nums1it > maxNonlinearIterations`, with nonzero `wrwaqon` and source/lateral.
 2. WAQ accumulator before failed attempt, after rejected attempt, after accepted retry.
@@ -37,7 +39,7 @@ A targeted native acceptance test must explicitly log:
 
 ## Upstream safety
 
-- The Research Repo is independent, private and `isFork=false`.
+- The Research Repo is independent, PUBLIC and `isFork=false`.
 - Copied upstream files are gitignored; their source contents are not committed to this repo.
 - No edits, pushes, issues or PRs have been made to Deltares/Delft3D.
 - Do not submit a defect claim until the above native acceptance criteria are passed.
@@ -50,3 +52,14 @@ sh tests/run.sh
 ```
 
 The test suite uses the original Fortran routines, not reimplementations, with small dependency stubs. The full hydrodynamics solver remains unavailable in this environment.
+
+## Public Linux CI verification
+
+- Public workflow: https://github.com/Johnny-Kao/delft3d-rollback-invariant-research/actions/runs/43441938561
+- Result: **SUCCESS** — original Fortran source compiled and the complete isolation suite passed on `ubuntu-24.04`, including pinned source fetch and final SHA verification.
+- No full D-Flow FM executable was compiled or run. This distinction is critical.
+- Upstream GitHub releases checked: tags available, but no downloadable executable assets. Upstream Actions had no unexpired binary artifacts during this scan.
+- Official standalone Linux build requires Intel oneAPI/Conan dependencies; the documented `buildtools` and `third-party-libs` containers are approximately 10 GB and 13 GB uncompressed, respectively. Registry availability was checked and timed out from this environment.
+- Repo visibility changed from private to public on November 13, 2026, without forking or touching Deltares upstream.
+
+**Decision:** source-level candidate supported, production-repro sign-off still blocked. Do not assert major physical consequences without a native retry + `.flo` comparison.
