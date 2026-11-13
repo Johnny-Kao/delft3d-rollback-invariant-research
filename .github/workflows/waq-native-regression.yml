@@ -1,0 +1,28 @@
+name: WAQ rollback candidate - original Fortran routines
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  original-upstream-isolation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout independent research repository
+        uses: actions/checkout@v4
+      - name: Install GNU Fortran
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends gfortran
+      - name: Retrieve pinned original Delft3D source (not a fork)
+        run: sh scripts/bootstrap_upstream.sh
+      - name: Verify original source functions and exporter control-flow
+        run: sh tests/run.sh
+      - name: Verify copied upstream commit
+        run: test "$(git -C upstream rev-parse HEAD)" = fc48ceb1692afd87699f4cda081884c4bf4d2a91
