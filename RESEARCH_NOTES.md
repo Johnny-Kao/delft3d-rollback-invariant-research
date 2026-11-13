@@ -30,6 +30,23 @@ A compact D-Flow FM case with 1 source/sink or lateral, WAQ output enabled, and 
 
 Compare integrated source/sink volumes and accepted-solution flux, not merely floating point bitwise differences. Log exact solver branch and timestep to avoid false positives.
 
+## Isolation test result (2026-11-13)
+
+Upstream source copied with Git sparse clone into gitignored `upstream/`, pinned at exact baseline SHA, without GitHub fork relationship. The original Fortran file is compiled directly, unmodified; only its surrounding dependency modules are test stubs.
+
+Run `sh tests/run.sh` (requires `python3` and `gfortran`).
+
+- Static control-flow check: PASS — `key==2` branch explicitly restores both WAQ accumulators, while the nonlinear iteration-limit `cycle setback` branch does not.
+- Original upstream `update_waq_lateral_fluxes.f90` compiled with test stubs: PASS.
+- Retry arithmetic test: without restore 250.0; with restore 150.0, with initial 100.0, discharge 5.0, rejected `dts=20`, accepted `dts=10`.
+- Scope: confirms *function-level cumulative semantics*, **not** an end-to-end Delft3D production defect. No complete solver executable or WAQ export path was run.
+
+### Hidden contract audit
+
+`step_reduce_hydro` snapshots before `setback`; `s1ini` runs inside `wetdry` inside `setback`. The nonlinear iteration-limit branch resets water level and time step then restarts `setback` without explicit WAQ restores. The original lateral flux updater does not clear its accumulator; it adds `dts * qqLat` to the existing value. This eliminates an *inside-the-updater* implicit-clear hypothesis, not all possible upstream invariants.
+
+Outstanding: whether original production configurations can reach the branch with `wrwaqon` and an active source/lateral; whether external orchestration changes accumulators or ignores corrupted values; check earlier paths and output writer usage. Next step: minimal native solver integration run, ideally Linux isolated, with a forced convergence failure and WAQ output enabled.
+
 ## Collision
 
 Check recent and closed upstream PRs involving `step_reduce_hydro`, WAQ cumulative flux and rollback before any contribution.
