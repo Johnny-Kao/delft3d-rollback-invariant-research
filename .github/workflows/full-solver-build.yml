@@ -1,0 +1,87 @@
+name: Attempt pinned native D-Flow FM build (public toolchain)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pinned-solver-build
+  cancel-in-progress: false
+
+jobs:
+  build-native-solver:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - name: Checkout independent research repository
+        uses: actions/checkout@v4
+
+      - name: Prepare ephemeral runner disk
+        shell: bash
+        run: |
+          df -h .
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup
+          docker system prune -af || true
+          df -h .
+
+      - name: Fetch complete pinned source as an independent copy
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git init native-src
+          git -C native-src remote add origin https://github.com/Deltares/Delft3D.git
+          git -C native-src fetch --depth=1 --filter=blob:none origin fc48ceb1692afd87699f4cda081884c4bf4d2a91
+          git -C native-src checkout --detach FETCH_HEAD
+          test "$(git -C native-src rev-parse HEAD)" = fc48ceb1692afd87699f4cda081884c4bf4d2a91
+          df -h .
+
+      - name: Build public Intel oneAPI compiler image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build --progress=plain --file ci/public-intel-base.Dockerfile --tag local/delft3d-public-buildtools:2024 .
+          docker run --rm local/delft3d-public-buildtools:2024 bash -lc 'source /etc/bashrc; ifx --version; cmake --version; conan --version'
+          df -h .
+
+      - name: Build remaining original Delft3D third-party libraries
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build --progress=plain \
+            --file native-src/ci/dockerfiles/linux/third-party-libs.Dockerfile \
+            --build-arg BUILDTOOLS_IMAGE_URL=local/delft3d-public-buildtools \
+            --build-arg BUILDTOOLS_IMAGE_TAG=2024 \
+            --build-arg INTEL_ONEAPI_VERSION=2024 \
+            --build-arg INTEL_FORTRAN_COMPILER=ifx \
+            --tag local/delft3d-public-thirdparty:2024 .
+          df -h .
+
+      - name: Configure, compile and install pinned D-Flow FM executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --shm-size=2g \
+            -v "$PWD/native-src:/delft3d" -w /delft3d \
+            local/delft3d-public-thirdparty:2024 \
+            bash -lc 'source /etc/bashrc; python3 run_conan.py initialize external; python3 build.py --config dflowfm --profile delft3d_alma8_intel_2024_v3 --build --build-type Release --build-dependencies --ci'
+          df -h .
+
+      - name: Identify runnable native binaries and available example models
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d native-src/build_dflowfm_release/install
+          du -sh native-src/build_dflowfm_release/install
+          find native-src/build_dflowfm_release/install -type f -name '*dflowfm*' -print
+          find native-src/examples/dflowfm -maxdepth 4 -type f -name '*.mdu' -print | sort | head -40
+          echo "Pinned full D-Flow FM compiled. Actual model with WAQ retry still needs its own integration comparison."
+
+      - name: Upload native build outputs if successful
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pinned-dflowfm-native-build
+          path: native-src/build_dflowfm_release/install/
+          retention-days: 1
