@@ -4,7 +4,10 @@ FROM intel/hpckit:2024.2.1-0-devel-rockylinux9
 
 USER root
 
-RUN dnf -y install \
+# Intel's optional GPU repository has a TLS certificate issue on current public runners.
+# The CPU/Fortran toolchain does not require it.
+RUN dnf -y --disablerepo='intel-graphics*' install epel-release \
+    && dnf -y --disablerepo='intel-graphics*' install \
     git wget curl tar xz unzip make m4 patch diffutils which procps-ng \
     gcc gcc-c++ gcc-gfortran python3 python3-pip perl \
     autoconf automake libtool pkgconf-pkg-config patchelf \
