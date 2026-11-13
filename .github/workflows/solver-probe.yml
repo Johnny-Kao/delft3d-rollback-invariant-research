@@ -33,4 +33,7 @@ jobs:
             timeout 35 docker manifest inspect "$image" >/dev/null
             echo "docker_manifest_exit_code=$?"
           done
+          echo 'Checking public Intel oneAPI compiler fallback (no layers downloaded)'
+          timeout 35 docker manifest inspect intel/hpckit:2024.2.1-0-devel-rockylinux9 >/dev/null
+          echo "public_intel_toolchain_exit_code=$?"
           echo 'This only checks reachability and authorization. No full solver was run.'
