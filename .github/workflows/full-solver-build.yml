@@ -22,8 +22,9 @@ jobs:
         shell: bash
         run: |
           df -h .
-          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup
-          docker system prune -af || true
+          # Avoid recursive removal of large hosted-runner SDK trees here:
+          # it can monopolize the job before source checkout even starts.
+          docker system df || true
           df -h .
 
       - name: Fetch complete pinned source as an independent copy
