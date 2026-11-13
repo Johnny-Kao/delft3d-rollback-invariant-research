@@ -1,0 +1,28 @@
+name: Probe full Delft3D FM runtime accessibility
+
+on:
+  workflow_dispatch:
+  push:
+    paths: [.github/workflows/solver-probe.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  registry-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check image registry without credentials or downloading large layers
+        shell: bash
+        run: |
+          set +e
+          for endpoint in \
+            https://containers.deltares.nl/v2/ \
+            https://containers.deltares.nl/v2/delft3d/delft3dfm/manifests/2026.02-release \
+            https://containers.deltares.nl/v2/delft3d-dev/delft3d-third-party-libs/manifests/oneapi-2024-ifx-release; do
+            echo "Probing $endpoint"
+            curl --connect-timeout 8 --max-time 20 -L -sS -o /dev/null -w 'http=%{http_code} error=%{errormsg}\n' -H 'Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.v2+json' "$endpoint"
+          done
+          echo 'This only checks reachability and authorization. No full solver was run.'
