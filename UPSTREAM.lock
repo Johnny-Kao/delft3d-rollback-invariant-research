@@ -1,0 +1,5 @@
+repository=https://github.com/Deltares/Delft3D
+branch=main
+commit=fc48ceb1692afd87699f4cda081884c4bf4d2a91
+upstream_is_fork=false
+upstream_write_allowed=false

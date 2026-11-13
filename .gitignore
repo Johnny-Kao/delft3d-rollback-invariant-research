@@ -1,0 +1,10 @@
+.DS_Store
+__pycache__/
+.pytest_cache/
+build/
+cmake-build-*/
+upstream/
+results/
+*.mod
+*.o
+*.exe
