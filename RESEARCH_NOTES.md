@@ -39,7 +39,10 @@ Run `sh tests/run.sh` (requires `python3` and `gfortran`).
 - Static control-flow check: PASS — `key==2` branch explicitly restores both WAQ accumulators, while the nonlinear iteration-limit `cycle setback` branch does not.
 - Original upstream `update_waq_lateral_fluxes.f90` compiled with test stubs: PASS.
 - Retry arithmetic test: without restore 250.0; with restore 150.0, with initial 100.0, discharge 5.0, rejected `dts=20`, accepted `dts=10`.
-- Scope: confirms *function-level cumulative semantics*, **not** an end-to-end Delft3D production defect. No complete solver executable or WAQ export path was run.
+- Original upstream `update_waq_sink_source_fluxes.f90` 2D branch compiled with test stubs: PASS, same 250 vs 150 divergence.
+- Static WAQ exporter trace: PASS — `.flo` uses both accumulated values and resets them after writing.
+- Scope: confirms *function-level cumulative semantics and source-level export consumption*, **not** an end-to-end Delft3D production defect. No complete solver executable or `.flo` export was run.
+- Full test matrix and build blocker recorded in `VALIDATION_2026-11-13.md`.
 
 ### Hidden contract audit
 
