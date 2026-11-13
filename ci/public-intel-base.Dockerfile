@@ -14,6 +14,10 @@ RUN dnf -y --disablerepo='intel-graphics*' --disablerepo='oneAPI' --setopt=timeo
     autoconf automake libtool pkgconf-pkg-config patchelf \
     && dnf clean all
 
+# SWAN's upstream build recipe invokes `python`, while Rocky 9 ships `python3`.
+RUN ln -s "$(command -v python3)" /usr/local/bin/python \
+    && python --version
+
 # Delft3D main requires CMake 4; the public oneAPI image may ship an older version.
 RUN curl -fL --retry 3 --connect-timeout 20 \
       https://github.com/Kitware/CMake/releases/download/v4.2.3/cmake-4.2.3-linux-x86_64.sh \
