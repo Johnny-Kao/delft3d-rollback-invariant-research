@@ -76,7 +76,52 @@ jobs:
           du -sh native-src/build_dflowfm_release/install
           find native-src/build_dflowfm_release/install -type f -name '*dflowfm*' -print
           find native-src/examples/dflowfm -maxdepth 4 -type f -name '*.mdu' -print | sort | head -40
-          echo "Pinned full D-Flow FM compiled. Actual model with WAQ retry still needs its own integration comparison."
+          echo "Pinned full D-Flow FM compiled; proceeding to real WAQ model cases."
+
+      - name: Execute original example with WAQ and nonlinear retry variants
+        shell: bash
+        run: |
+          set -euo pipefail
+          DELFT3D_SOURCE_ROOT="$PWD/native-src" python3 scripts/prepare_native_waq_models.py
+          baseline_ok=0
+          reproduced=0
+          for case in baseline one-iteration-limit two-iteration-limit three-iteration-limit; do
+            echo "Running candidate: $case"
+            set +e
+            docker run --rm --shm-size=2g \
+              -v "$PWD/native-src:/delft3d" -v "$PWD/build/native-waq-models:/models" \
+              -w "/models/$case" local/delft3d-public-thirdparty:2024 \
+              bash -lc '/delft3d/build_dflowfm_release/install/bin/run_dflowfm.sh FlowFM.mdu' \
+              >"build/native-waq-models/$case/native-run.log" 2>&1
+            rc=$?
+            set -e
+            echo "$case solver_exit_code=$rc"
+            printf 'exit_code=%s\n' "$rc" >"build/native-waq-models/$case/exit-code.txt"
+            if [ "$rc" -eq 0 ] && find "build/native-waq-models/$case" -name '*.flo' -type f | grep -q .; then
+              echo "$case: real .flo output produced"
+              [ "$case" = baseline ] && baseline_ok=1
+              if [ "$case" != baseline ] && grep -qi 'No convergence in nonlinear solver' "build/native-waq-models/$case/native-run.log"; then
+                reproduced=1
+                echo "$case: retry warning and real .flo output both found"
+              fi
+            fi
+          done
+          test "$baseline_ok" -eq 1 || { echo 'Native baseline did not produce a .flo output'; exit 1; }
+          test "$reproduced" -eq 1 || { echo 'No valid native convergence retry with .flo output was observed'; exit 1; }
+          echo 'Native retry and .flo existence confirmed; quantitative flux comparison remains necessary.'
+
+      - name: Upload native model evidence even if simulation fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-waq-model-evidence
+          path: |
+            build/native-waq-models/**/*.log
+            build/native-waq-models/**/*.flo
+            build/native-waq-models/**/*.mdu
+            build/native-waq-models/**/exit-code.txt
+          if-no-files-found: ignore
+          retention-days: 1
 
       - name: Upload native build outputs if successful
         if: success()
