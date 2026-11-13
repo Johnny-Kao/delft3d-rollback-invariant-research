@@ -7,9 +7,9 @@ USER root
 # The public image already contains the Intel CPU compilers. Disable Intel RPM
 # repositories during the unrelated Rocky/EPEL package install: both currently
 # fail certificate verification on GitHub-hosted Linux runners.
-RUN dnf -y --disablerepo='intel-graphics*' --disablerepo='oneAPI' install epel-release \
-    && dnf -y --disablerepo='intel-graphics*' --disablerepo='oneAPI' install \
-    git wget curl tar xz unzip make m4 patch diffutils which procps-ng \
+RUN dnf -y --disablerepo='intel-graphics*' --disablerepo='oneAPI' --setopt=timeout=10 --setopt=retries=2 install epel-release \
+    && dnf -y --disablerepo='intel-graphics*' --disablerepo='oneAPI' --setopt=timeout=10 --setopt=retries=2 install \
+    git wget tar xz unzip make m4 patch diffutils which procps-ng \
     gcc gcc-c++ gcc-gfortran python3 python3-pip perl \
     autoconf automake libtool pkgconf-pkg-config patchelf \
     && dnf clean all
